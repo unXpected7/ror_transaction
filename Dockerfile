@@ -6,8 +6,16 @@ ENV RAILS_ENV=production \
     RACK_ENV=production \
     NODE_ENV=production
 
-# Install dependencies
-RUN apt-get update -qq && apt-get install -y build-essential libpq-dev nodejs
+# Install dependencies including Ruby development libraries
+RUN apt-get update -qq && apt-get install -y \
+    build-essential \
+    libpq-dev \
+    nodejs \
+    ruby-dev \
+    libssl-dev \
+    zlib1g-dev \
+    libsqlite3-dev \
+    libffi-dev
 
 # Set the working directory
 WORKDIR /app
@@ -23,8 +31,8 @@ RUN gem install bundler -v '2.4.20'
 # Copy Gemfile and Gemfile.lock
 COPY Gemfile Gemfile.lock ./
 
-# Install gems
-RUN bundle install --without development test
+# Install gems including Rails
+RUN bundle install --without development test --path vendor/bundle
 
 # Copy the entire application code to the working directory
 COPY . .
@@ -33,11 +41,10 @@ COPY . .
 RUN if [ ! -f "Rakefile" ]; then echo "Rakefile not found in the expected location"; exit 1; fi
 
 # Precompile assets
-# RUN bundle exec rake assets:precompile
-# Ensure the Rails environment is set before precompiling assets
 RUN bundle exec rails assets:precompile
+
 # Expose port 3000 to the host
 EXPOSE 3000
 
-# Start the Rails server
-CMD ["rails", "server", "-b", "0.0.0.0"]
+# Start the Rails server using `bundle exec` to ensure it uses the correct context
+CMD ["bundle", "exec", "rails", "server", "-b", "0.0.0.0"]
